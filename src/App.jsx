@@ -603,17 +603,20 @@ function CadastroScreen({ onDone }) {
   const pwa = usePWA();
   const s = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  async function finish() {
+  function finish() {
     setStep(4);
     playSound("success");
     setBanner({ ico: "🎉", title: "Bem-vindo ao BeachPlay!", sub: `Olá, ${form.apelido || form.nome}! Conta criada com sucesso` });
-    await requestNotificationPermission();
-    setTimeout(() => { setShowPWA(true); playSound("notification"); }, 1800);
+    // fire-and-forget: não bloqueia se o browser negar notificações
+    requestNotificationPermission();
+    // após 2s mostra modal PWA; após 6s avança automaticamente como fallback
+    setTimeout(() => { setShowPWA(true); playSound("notification"); }, 2000);
+    setTimeout(() => onDone(form), 6000);
   }
 
   async function handlePWAInstall() { return await pwa.install(); }
 
-  function handlePWAClose() { setShowPWA(false); setTimeout(() => onDone(form), 400); }
+  function handlePWAClose() { setShowPWA(false); onDone(form); }
 
   return (
     <div className="cad-screen">
