@@ -605,82 +605,196 @@ function PWAModal({ onClose, onInstall, installed }) {
 ════════════════════════════════════════════════════════ */
 function CadastroScreen({ onDone }) {
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ nome: "", apelido: "", genero: "M", categoria: "B", esporte: "BT", email: "" });
+  const [form, setForm] = useState({
+    nome: "", apelido: "", telefone: "", cidade: "",
+    genero: "", esporte: "BT", categoria: "", email: "", senha: "",
+  });
+  const [senhaErro, setSenhaErro] = useState("");
   const [showPWA, setShowPWA] = useState(false);
   const [banner, setBanner] = useState(null);
   const pwa = usePWA();
   const s = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  const step1Ok = form.nome.trim().length >= 2;
+  const step2Ok = form.genero && form.categoria;
+  const step3Ok = form.email.includes("@") && form.senha.length >= 6;
+
+  function avancar() {
+    setSenhaErro("");
+    if (step === 3) { finish(); return; }
+    setStep(p => p + 1);
+  }
+
   function finish() {
     setStep(4);
     playSound("success");
-    setBanner({ ico: "🎉", title: "Bem-vindo ao BeachPlay!", sub: `Olá, ${form.apelido || form.nome}! Conta criada com sucesso` });
-    // fire-and-forget: não bloqueia se o browser negar notificações
+    setBanner({ ico: "🎉", title: `Bem-vindo, ${form.apelido || form.nome.split(" ")[0]}!`, sub: "Conta criada com sucesso · Bora jogar! 🎾" });
     requestNotificationPermission();
-    // após 2s mostra modal PWA; após 6s avança automaticamente como fallback
     setTimeout(() => { setShowPWA(true); playSound("notification"); }, 2000);
     setTimeout(() => onDone(form), 6000);
   }
 
   async function handlePWAInstall() { return await pwa.install(); }
-
   function handlePWAClose() { setShowPWA(false); onDone(form); }
+
+  const CATS = [
+    ["A", "A", "Profissional"],
+    ["B", "B", "Avançado"],
+    ["C", "C", "Intermediário"],
+    ["D", "D", "Básico"],
+    ["Iniciante", "🌱", "Iniciante"],
+  ];
+
+  const stepTitles = ["", "Quem é você?", "Seu esporte", "Acesso seguro"];
+  const stepIcos   = ["", "👤", "🎾", "🔐"];
 
   return (
     <div className="cad-screen">
       {banner && <GlobalBanner {...banner} onDone={() => setBanner(null)} />}
       <div className="cad-card">
         <div className="cad-logo">Beach<span>Play</span></div>
-        <div className="cad-sub">Beach Tennis & Futevôlei</div>
+        <div className="cad-sub">Beach Tennis &amp; Futevôlei</div>
+
         {step < 4 && (
-          <div className="cad-step-dots">
-            {[1, 2, 3].map(i => <div key={i} className={`cad-dot ${step === i ? "active" : step > i ? "done" : ""}`} />)}
-          </div>
+          <>
+            <div className="cad-step-dots" style={{ marginBottom: 8 }}>
+              {[1, 2, 3].map(i => (
+                <div key={i} className={`cad-dot ${step === i ? "active" : step > i ? "done" : ""}`} />
+              ))}
+            </div>
+            <div style={{ textAlign: "center", marginBottom: 18, fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>
+              {stepIcos[step]} {stepTitles[step]} &nbsp;·&nbsp; Passo {step} de 3
+            </div>
+          </>
         )}
 
+        {/* ── PASSO 1: Identificação ── */}
         {step === 1 && (
           <div>
-            <div style={{ fontWeight: 800, color: "var(--ocean)", marginBottom: 16, fontSize: 15 }}>👤 Seus dados</div>
-            <div className="fg"><label className="flbl">Nome completo</label><input className="finp" placeholder="Seu nome" value={form.nome} onChange={e => s("nome", e.target.value)} /></div>
-            <div className="fg"><label className="flbl">Apelido / Nickname</label><input className="finp" placeholder="Como te chamam na quadra" value={form.apelido} onChange={e => s("apelido", e.target.value)} /></div>
-            <div className="fg"><label className="flbl">Gênero</label><div className="rgrp"><button className={`rbtn ${form.genero === "M" ? "sel" : ""}`} onClick={() => s("genero", "M")}>♂ Masculino</button><button className={`rbtn ${form.genero === "F" ? "sel" : ""}`} onClick={() => s("genero", "F")}>♀ Feminino</button></div></div>
-            <button className="btn btn-p btn-blk" disabled={!form.nome} onClick={() => setStep(2)}>Próximo →</button>
+            <div className="fg">
+              <label className="flbl">Nome completo *</label>
+              <input className="finp" placeholder="Ex: Carlos Melo" value={form.nome}
+                onChange={e => s("nome", e.target.value)} autoFocus />
+            </div>
+            <div className="fg">
+              <label className="flbl">Apelido na quadra</label>
+              <input className="finp" placeholder="Como te chamam? Ex: Carlão"
+                value={form.apelido} onChange={e => s("apelido", e.target.value)} />
+              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                Aparece no ranking e nos sorteios de duplas
+              </div>
+            </div>
+            <div className="frow">
+              <div className="fg" style={{ marginBottom: 0 }}>
+                <label className="flbl">Telefone / WhatsApp</label>
+                <input className="finp" type="tel" placeholder="(11) 99999-9999"
+                  value={form.telefone} onChange={e => s("telefone", e.target.value)} />
+              </div>
+              <div className="fg" style={{ marginBottom: 0 }}>
+                <label className="flbl">Cidade</label>
+                <input className="finp" placeholder="Sua cidade"
+                  value={form.cidade} onChange={e => s("cidade", e.target.value)} />
+              </div>
+            </div>
+            <button className="btn btn-p btn-blk" style={{ marginTop: 20 }}
+              disabled={!step1Ok} onClick={avancar}>
+              Próximo →
+            </button>
           </div>
         )}
 
+        {/* ── PASSO 2: Esporte ── */}
         {step === 2 && (
           <div>
-            <div style={{ fontWeight: 800, color: "var(--ocean)", marginBottom: 16, fontSize: 15 }}>🎾 Esporte e nível</div>
-            <div className="fg"><label className="flbl">Esporte preferido</label><div className="rgrp"><button className={`rbtn ${form.esporte === "BT" ? "sel" : ""}`} onClick={() => s("esporte", "BT")}>🎾 Beach Tennis</button><button className={`rbtn ${form.esporte === "FV" ? "sel" : ""}`} onClick={() => s("esporte", "FV")}>⚽ Futevôlei</button><button className={`rbtn ${form.esporte === "AMBOS" ? "sel" : ""}`} onClick={() => s("esporte", "AMBOS")}>🏅 Ambos</button></div></div>
-            <div className="fg"><label className="flbl">Categoria</label><div className="rgrp">{[["A", "A · Avançado"], ["B", "B · Intermediário"], ["C", "C · Iniciante"]].map(([v, l]) => <button key={v} className={`rbtn ${form.categoria === v ? "sel" : ""}`} onClick={() => s("categoria", v)}>{l}</button>)}</div></div>
-            <div style={{ display: "flex", gap: 10 }}>
+            <div className="fg">
+              <label className="flbl">Gênero *</label>
+              <div className="rgrp">
+                {[["M", "♂ Masculino"], ["F", "♀ Feminino"], ["O", "⚧ Outro"]].map(([v, l]) => (
+                  <button key={v} className={`rbtn ${form.genero === v ? "sel" : ""}`}
+                    onClick={() => s("genero", v)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="fg">
+              <label className="flbl">Esporte preferido</label>
+              <div className="rgrp">
+                {[["BT", "🎾 Beach Tennis"], ["FV", "⚽ Futevôlei"], ["AMBOS", "🏅 Ambos"]].map(([v, l]) => (
+                  <button key={v} className={`rbtn ${form.esporte === v ? "sel" : ""}`}
+                    onClick={() => s("esporte", v)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="fg">
+              <label className="flbl">Categoria / Nível *</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {CATS.map(([v, ico, desc]) => (
+                  <button key={v} onClick={() => s("categoria", v)}
+                    style={{
+                      padding: "10px 12px", borderRadius: 12, border: `2px solid ${form.categoria === v ? "var(--teal)" : "var(--sand2)"}`,
+                      background: form.categoria === v ? "rgba(26,155,140,.1)" : "#fff",
+                      cursor: "pointer", textAlign: "left", transition: "all .18s",
+                    }}>
+                    <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 20, fontWeight: 900, color: form.categoria === v ? "var(--teal)" : "var(--ocean)" }}>{ico}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)", marginTop: 2 }}>{desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
               <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setStep(1)}>← Voltar</button>
-              <button className="btn btn-p" style={{ flex: 2 }} onClick={() => setStep(3)}>Próximo →</button>
+              <button className="btn btn-p" style={{ flex: 2 }} disabled={!step2Ok} onClick={avancar}>Próximo →</button>
             </div>
           </div>
         )}
 
+        {/* ── PASSO 3: Acesso ── */}
         {step === 3 && (
           <div>
-            <div style={{ fontWeight: 800, color: "var(--ocean)", marginBottom: 16, fontSize: 15 }}>🔐 Acesso</div>
-            <div className="fg"><label className="flbl">E-mail</label><input className="finp" type="email" placeholder="seu@email.com" value={form.email} onChange={e => s("email", e.target.value)} /></div>
-            <div className="fg"><label className="flbl">Senha</label><input className="finp" type="password" placeholder="Mínimo 6 caracteres" /></div>
-            <div className="alert alert-info" style={{ marginBottom: 16 }}>🔔 Você receberá notificações de partidas e plays</div>
+            <div className="fg">
+              <label className="flbl">E-mail *</label>
+              <input className="finp" type="email" placeholder="seu@email.com"
+                value={form.email} onChange={e => s("email", e.target.value)} />
+            </div>
+            <div className="fg">
+              <label className="flbl">Senha *</label>
+              <input className="finp" type="password" placeholder="Mínimo 6 caracteres"
+                value={form.senha} onChange={e => { s("senha", e.target.value); setSenhaErro(""); }} />
+            </div>
+            <div className="fg" style={{ marginBottom: 6 }}>
+              <label className="flbl">Confirmar senha *</label>
+              <input className="finp" type="password" placeholder="Repita a senha"
+                onChange={e => setSenhaErro(e.target.value !== form.senha ? "As senhas não coincidem" : "")} />
+            </div>
+            {senhaErro && <div className="alert alert-warn" style={{ marginBottom: 12 }}>⚠️ {senhaErro}</div>}
+            <div className="alert alert-info" style={{ marginBottom: 16 }}>
+              🔔 Você receberá notificações de partidas e convites de grupos
+            </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setStep(2)}>← Voltar</button>
-              <button className="btn btn-sun" style={{ flex: 2 }} onClick={finish}>🎉 Criar conta!</button>
+              <button className="btn btn-sun" style={{ flex: 2 }}
+                disabled={!step3Ok || !!senhaErro} onClick={avancar}>🎉 Criar conta!</button>
             </div>
           </div>
         )}
 
+        {/* ── PASSO 4: Sucesso ── */}
         {step === 4 && (
           <div className="cad-success">
             <div className="cad-success-ico">🏖️</div>
-            <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 28, fontWeight: 900, color: "var(--ocean)" }}>Conta criada!</div>
-            <div style={{ fontSize: 14, color: "var(--muted)", marginTop: 6, marginBottom: 20 }}>Bem-vindo ao BeachPlay, {form.apelido || form.nome}!</div>
+            <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 28, fontWeight: 900, color: "var(--ocean)" }}>
+              Conta criada!
+            </div>
+            <div style={{ fontSize: 14, color: "var(--muted)", marginTop: 6, marginBottom: 12 }}>
+              Bem-vindo ao BeachPlay, <strong>{form.apelido || form.nome.split(" ")[0]}</strong>!
+            </div>
+            {form.cidade && (
+              <div style={{ fontSize: 13, color: "var(--teal)", fontWeight: 700, marginBottom: 16 }}>
+                📍 {form.cidade}
+              </div>
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--teal)" }} />
-              <span style={{ fontSize: 13, color: "var(--muted)" }}>Configurando sua conta...</span>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--teal)", animation: "pulse 1s infinite" }} />
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>Preparando seu perfil...</span>
             </div>
           </div>
         )}
@@ -693,29 +807,29 @@ function CadastroScreen({ onDone }) {
 /* ════════════════════════════════════════════════════════
    CRIAR PLAY
 ════════════════════════════════════════════════════════ */
-function CreatePlayModal({ onClose, onCreate }) {
+function CreatePlayModal({ onClose, onCreate, groups = [] }) {
   const today = new Date().toISOString().split("T")[0];
+  const myGroups = groups.filter(g => g.membros.includes(ME));
   const [f, setF] = useState({
     nome: "", esporte: "BT", tipo: "casual", tipo_jogo: "normal",
     data: today, horario: "08:00", local: "", vagas: 8,
-    aluguel: 0, extras: 0, pix_chave: "", pix_nome: "", pix_tipo: "email",
+    aluguel: 0, pix_chave: "", group_id: myGroups[0]?.id || "",
   });
   const s = (k, v) => setF(x => ({ ...x, [k]: v }));
 
   function create() {
+    const grp = myGroups.find(g => String(g.id) === String(f.group_id));
     const novo = {
       id: Date.now(),
-      nome: f.nome || `Play ${f.esporte} · ${fmtDate(f.data)}`,
+      nome: f.nome || `Play ${sportLbl(f.esporte)} · ${fmtDate(f.data)}`,
       esporte: f.esporte, tipo: f.tipo, tipo_jogo: f.tipo_jogo,
       status: "aberto", data: f.data, horario: f.horario,
       local: f.local || "A definir", endereco: "", vagas: Number(f.vagas),
-      inscritos: [ME], tipo_dupla: "livre", misto_obrigatorio: false,
-      categoria: false, formato: null, quem_lanca: "admin",
-      financeiro: {
-        aluguel: Number(f.aluguel), extras: Number(f.extras),
-        pix_chave: f.pix_chave, pix_nome: f.pix_nome, pix_tipo: f.pix_tipo,
-      },
-      admin_id: ME, privado: false,
+      inscritos: grp ? [...new Set([ME, ...grp.membros])] : [ME],
+      tipo_dupla: "livre", misto_obrigatorio: false, categoria: false,
+      formato: null, quem_lanca: "admin",
+      financeiro: { aluguel: Number(f.aluguel), extras: 0, pix_chave: f.pix_chave, pix_nome: "", pix_tipo: "email" },
+      admin_id: ME, privado: !!grp, group_id: grp?.id || null,
       pagamentos: [{ user_id: ME, status: "confirmado" }],
       presentes: f.tipo_jogo === "progressivo" ? [ME] : undefined,
       rodadas: f.tipo_jogo === "progressivo" ? [] : undefined,
@@ -725,15 +839,41 @@ function CreatePlayModal({ onClose, onCreate }) {
     onClose();
   }
 
+  const tipoDescricoes = {
+    casual: "Jogo livre, sem tabela",
+    campeonato: "Com tabela e ranking",
+    progressivo: "Duplas sorteadas a cada rodada",
+  };
+  const tipoAtual = f.tipo_jogo === "progressivo" ? "progressivo" : f.tipo;
+
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e => e.stopPropagation()}>
         <div className="sh-handle" />
-        <div className="sh-title">🎾 Criar Play</div>
+        <div className="sh-title">🎾 Novo Play</div>
+
+        {/* Grupo vinculado */}
+        {myGroups.length > 0 && (
+          <div className="fg">
+            <label className="flbl">Vincular a um grupo</label>
+            <select className="finp fsel" value={f.group_id} onChange={e => s("group_id", e.target.value)}>
+              <option value="">— Sem grupo (play aberto) —</option>
+              {myGroups.map(g => (
+                <option key={g.id} value={g.id}>{g.icon} {g.nome}</option>
+              ))}
+            </select>
+            {f.group_id && (
+              <div style={{ fontSize: 11, color: "var(--teal)", marginTop: 4, fontWeight: 600 }}>
+                ✅ Todos os membros do grupo serão inscritos automaticamente
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="fg">
           <label className="flbl">Nome do play</label>
-          <input className="finp" placeholder="Ex: Play de Sábado" value={f.nome} onChange={e => s("nome", e.target.value)} />
+          <input className="finp" placeholder="Ex: Play de Sábado — deixe em branco para gerar automaticamente"
+            value={f.nome} onChange={e => s("nome", e.target.value)} />
         </div>
 
         <div className="fg">
@@ -745,12 +885,16 @@ function CreatePlayModal({ onClose, onCreate }) {
         </div>
 
         <div className="fg">
-          <label className="flbl">Tipo</label>
+          <label className="flbl">Tipo de play</label>
           <div className="rgrp">
-            <button className={`rbtn ${f.tipo_jogo === "normal" && f.tipo === "casual" ? "sel" : ""}`} onClick={() => { s("tipo", "casual"); s("tipo_jogo", "normal"); }}>🎮 Casual</button>
-            <button className={`rbtn ${f.tipo === "campeonato" ? "sel" : ""}`} onClick={() => { s("tipo", "campeonato"); s("tipo_jogo", "normal"); }}>🏆 Campeonato</button>
-            <button className={`rbtn ${f.tipo_jogo === "progressivo" ? "sel" : ""}`} onClick={() => { s("tipo", "casual"); s("tipo_jogo", "progressivo"); }}>🔄 Progressivo</button>
+            {[["casual", "🎮 Casual"], ["campeonato", "🏆 Campeonato"], ["progressivo", "🔄 Progressivo"]].map(([v, l]) => (
+              <button key={v} className={`rbtn ${tipoAtual === v ? "sel" : ""}`}
+                onClick={() => { s("tipo", v === "progressivo" ? "casual" : v); s("tipo_jogo", v === "progressivo" ? "progressivo" : "normal"); }}>
+                {l}
+              </button>
+            ))}
           </div>
+          <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>{tipoDescricoes[tipoAtual]}</div>
         </div>
 
         <div className="frow">
@@ -765,27 +909,33 @@ function CreatePlayModal({ onClose, onCreate }) {
         </div>
 
         <div className="fg" style={{ marginTop: 14 }}>
-          <label className="flbl">Local</label>
-          <input className="finp" placeholder="Nome da quadra ou endereço" value={f.local} onChange={e => s("local", e.target.value)} />
+          <label className="flbl">Local / Quadra</label>
+          <input className="finp" placeholder="Ex: Arena Beach Central"
+            value={f.local} onChange={e => s("local", e.target.value)} />
         </div>
 
         <div className="frow">
           <div className="fg" style={{ marginBottom: 0 }}>
             <label className="flbl">Vagas</label>
-            <input className="finp" type="number" min={2} max={32} value={f.vagas} onChange={e => s("vagas", e.target.value)} />
+            <input className="finp" type="number" min={2} max={32} value={f.vagas}
+              onChange={e => s("vagas", e.target.value)} />
           </div>
           <div className="fg" style={{ marginBottom: 0 }}>
             <label className="flbl">Aluguel (R$)</label>
-            <input className="finp" type="number" min={0} placeholder="0" value={f.aluguel} onChange={e => s("aluguel", e.target.value)} />
+            <input className="finp" type="number" min={0} placeholder="0" value={f.aluguel}
+              onChange={e => s("aluguel", e.target.value)} />
           </div>
         </div>
 
-        <div className="fg" style={{ marginTop: 14 }}>
-          <label className="flbl">Chave Pix</label>
-          <input className="finp" placeholder="CPF, e-mail, telefone ou chave" value={f.pix_chave} onChange={e => s("pix_chave", e.target.value)} />
-        </div>
+        {Number(f.aluguel) > 0 && (
+          <div className="fg" style={{ marginTop: 14 }}>
+            <label className="flbl">Chave Pix para cobrança</label>
+            <input className="finp" placeholder="CPF, e-mail, telefone ou chave aleatória"
+              value={f.pix_chave} onChange={e => s("pix_chave", e.target.value)} />
+          </div>
+        )}
 
-        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+        <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
           <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
           <button className="btn btn-p" style={{ flex: 2 }} onClick={create}>✅ Criar Play</button>
         </div>
@@ -1251,6 +1401,7 @@ function PlayDetailScreen({ play, onBack }) {
 ════════════════════════════════════════════════════════ */
 export default function App() {
   const [cadastroDone, setCadastroDone] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [screen, setScreen] = useState("home");
   const [nav, setNav] = useState("home");
   const [plays, setPlays] = useState(INIT_PLAYS);
@@ -1299,11 +1450,21 @@ export default function App() {
   ];
   const showHdr = !["play", "progressive", "group"].includes(screen);
 
+  function handleLogout() {
+    setCadastroDone(false);
+    setCurrentUser(null);
+    setScreen("home");
+    setNav("home");
+    setSelPlay(null);
+    setSelGroup(null);
+  }
+
   if (!cadastroDone) return (
     <div className="app">
       <CadastroScreen onDone={(userData) => {
         setCadastroDone(true);
-        setBanner({ ico: "🏖️", title: `Bem-vindo, ${userData.apelido || userData.nome}!`, sub: "Sua conta foi criada. Bora jogar!" });
+        setCurrentUser(userData);
+        setBanner({ ico: "🏖️", title: `Bem-vindo, ${userData.apelido || userData.nome.split(" ")[0]}!`, sub: "Sua conta foi criada. Bora jogar!" });
         playSound("success");
       }} />
     </div>
@@ -1377,20 +1538,53 @@ export default function App() {
 
       {screen === "perfil" && (
         <div className="main">
+          {/* Card do usuário */}
           <div className="card cp" style={{ textAlign: "center", marginBottom: 12 }}>
-            <div style={{ width: 70, height: 70, borderRadius: "50%", background: "#0B4F6C", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 24, margin: "0 auto 12px" }}>BC</div>
-            <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 26, fontWeight: 900 }}>Bruno Custódio</div>
-            <div style={{ color: "var(--muted)", fontSize: 13 }}>@bruno · Cat. B</div>
+            {(() => {
+              const u = currentUser;
+              const initials = u ? (u.apelido || u.nome || "?").slice(0, 2).toUpperCase() : "BC";
+              const nome = u?.nome || "Bruno Custódio";
+              const apelido = u?.apelido || "";
+              const cat = u?.categoria || "B";
+              const cidade = u?.cidade || "";
+              const esporte = u?.esporte || "BT";
+              return (
+                <>
+                  <div style={{ width: 70, height: 70, borderRadius: "50%", background: "var(--ocean)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 22, margin: "0 auto 12px" }}>{initials}</div>
+                  <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 26, fontWeight: 900 }}>{nome}</div>
+                  {apelido && <div style={{ color: "var(--teal)", fontSize: 13, fontWeight: 700 }}>"{apelido}"</div>}
+                  <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 4, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                    <span>Cat. {cat}</span>
+                    <span>{sportEmo(esporte)} {sportLbl(esporte)}</span>
+                    {cidade && <span>📍 {cidade}</span>}
+                  </div>
+                </>
+              );
+            })()}
           </div>
+
+          {/* Estatísticas */}
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
             {[["60", "Pts"], ["20", "Vitórias"], ["2", "Títulos"], ["69%", "Aprov."]].map(([v, l]) => (
               <div key={l} className="stat-pill"><div className="spv">{v}</div><div className="spl">{l}</div></div>
             ))}
           </div>
+
+          {/* PWA */}
           {pwa.canInstall && !pwa.isInstalled && (
-            <button className="btn btn-sun btn-blk" style={{ marginBottom: 12 }} onClick={() => setShowPWA(true)}>📲 Instalar app na tela inicial</button>
+            <button className="btn btn-sun btn-blk" style={{ marginBottom: 12 }} onClick={() => setShowPWA(true)}>
+              📲 Instalar app na tela inicial
+            </button>
           )}
-          {pwa.isInstalled && <div className="alert alert-success">✅ BeachPlay instalado na tela inicial!</div>}
+          {pwa.isInstalled && <div className="alert alert-success" style={{ marginBottom: 12 }}>✅ BeachPlay instalado na tela inicial!</div>}
+
+          {/* Sair */}
+          <div style={{ height: 1, background: "var(--sand2)", margin: "8px 0 16px" }} />
+          <button className="btn btn-ghost-red btn-blk" onClick={() => {
+            if (window.confirm("Tem certeza que deseja sair?")) handleLogout();
+          }}>
+            🚪 Sair do app
+          </button>
         </div>
       )}
 
@@ -1427,7 +1621,7 @@ export default function App() {
         ))}
       </div>
 
-      {showCreatePlay && <CreatePlayModal onClose={() => setShowCreatePlay(false)} onCreate={handleCreatePlay} />}
+      {showCreatePlay && <CreatePlayModal onClose={() => setShowCreatePlay(false)} onCreate={handleCreatePlay} groups={groups} />}
       {showCreateGroup && <CreateGroupModal onClose={() => setShowCreateGroup(false)} onCreate={handleCreateGroup} />}
       {showPWA && <PWAModal onClose={() => setShowPWA(false)} onInstall={() => pwa.install()} installed={pwa.isInstalled} />}
     </div>
