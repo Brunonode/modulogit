@@ -408,6 +408,14 @@ body{font-family:'Nunito',sans-serif;background:var(--sand);color:var(--text);mi
 .prog-bye{background:rgba(245,166,35,.08);border-radius:10px;padding:6px 12px;font-size:12px;color:var(--sun2);font-weight:700;text-align:center;margin-top:8px}
 .prog-explain{font-size:11px;color:var(--muted);font-style:italic;margin-top:4px}
 .matrix-cell{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',cursive;font-size:14px;font-weight:900}
+
+.fab-backdrop{position:fixed;inset:0;z-index:54}
+.fab-menu{position:fixed;bottom:148px;right:calc(50% - 210px);display:flex;flex-direction:column;align-items:flex-end;gap:10px;z-index:56}
+.fab-item{display:flex;align-items:center;gap:10px;animation:fabItemIn .2s cubic-bezier(.34,1.56,.64,1)}
+@keyframes fabItemIn{from{opacity:0;transform:scale(.7) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.fab-item-btn{background:#fff;border:none;border-radius:14px;padding:10px 16px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;color:var(--ocean);cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.18);white-space:nowrap;display:flex;align-items:center;gap:8px}
+.fab-item-btn:hover{background:var(--sand)}
+.fab.open{transform:rotate(45deg)}
 `;
 
 /* ════════════════════════════════════════════════════════
@@ -678,6 +686,110 @@ function CadastroScreen({ onDone }) {
         )}
       </div>
       {showPWA && <PWAModal onClose={handlePWAClose} onInstall={handlePWAInstall} installed={pwa.isInstalled} />}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════
+   CRIAR PLAY
+════════════════════════════════════════════════════════ */
+function CreatePlayModal({ onClose, onCreate }) {
+  const today = new Date().toISOString().split("T")[0];
+  const [f, setF] = useState({
+    nome: "", esporte: "BT", tipo: "casual", tipo_jogo: "normal",
+    data: today, horario: "08:00", local: "", vagas: 8,
+    aluguel: 0, extras: 0, pix_chave: "", pix_nome: "", pix_tipo: "email",
+  });
+  const s = (k, v) => setF(x => ({ ...x, [k]: v }));
+
+  function create() {
+    const novo = {
+      id: Date.now(),
+      nome: f.nome || `Play ${f.esporte} · ${fmtDate(f.data)}`,
+      esporte: f.esporte, tipo: f.tipo, tipo_jogo: f.tipo_jogo,
+      status: "aberto", data: f.data, horario: f.horario,
+      local: f.local || "A definir", endereco: "", vagas: Number(f.vagas),
+      inscritos: [ME], tipo_dupla: "livre", misto_obrigatorio: false,
+      categoria: false, formato: null, quem_lanca: "admin",
+      financeiro: {
+        aluguel: Number(f.aluguel), extras: Number(f.extras),
+        pix_chave: f.pix_chave, pix_nome: f.pix_nome, pix_tipo: f.pix_tipo,
+      },
+      admin_id: ME, privado: false,
+      pagamentos: [{ user_id: ME, status: "confirmado" }],
+      presentes: f.tipo_jogo === "progressivo" ? [ME] : undefined,
+      rodadas: f.tipo_jogo === "progressivo" ? [] : undefined,
+      duplas: null, partidas: [], campeonato_ranking: [],
+    };
+    onCreate(novo);
+    onClose();
+  }
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e => e.stopPropagation()}>
+        <div className="sh-handle" />
+        <div className="sh-title">🎾 Criar Play</div>
+
+        <div className="fg">
+          <label className="flbl">Nome do play</label>
+          <input className="finp" placeholder="Ex: Play de Sábado" value={f.nome} onChange={e => s("nome", e.target.value)} />
+        </div>
+
+        <div className="fg">
+          <label className="flbl">Esporte</label>
+          <div className="rgrp">
+            <button className={`rbtn ${f.esporte === "BT" ? "sel" : ""}`} onClick={() => s("esporte", "BT")}>🎾 Beach Tennis</button>
+            <button className={`rbtn ${f.esporte === "FV" ? "sel" : ""}`} onClick={() => s("esporte", "FV")}>⚽ Futevôlei</button>
+          </div>
+        </div>
+
+        <div className="fg">
+          <label className="flbl">Tipo</label>
+          <div className="rgrp">
+            <button className={`rbtn ${f.tipo_jogo === "normal" && f.tipo === "casual" ? "sel" : ""}`} onClick={() => { s("tipo", "casual"); s("tipo_jogo", "normal"); }}>🎮 Casual</button>
+            <button className={`rbtn ${f.tipo === "campeonato" ? "sel" : ""}`} onClick={() => { s("tipo", "campeonato"); s("tipo_jogo", "normal"); }}>🏆 Campeonato</button>
+            <button className={`rbtn ${f.tipo_jogo === "progressivo" ? "sel" : ""}`} onClick={() => { s("tipo", "casual"); s("tipo_jogo", "progressivo"); }}>🔄 Progressivo</button>
+          </div>
+        </div>
+
+        <div className="frow">
+          <div className="fg" style={{ marginBottom: 0 }}>
+            <label className="flbl">Data</label>
+            <input className="finp" type="date" value={f.data} onChange={e => s("data", e.target.value)} />
+          </div>
+          <div className="fg" style={{ marginBottom: 0 }}>
+            <label className="flbl">Horário</label>
+            <input className="finp" type="time" value={f.horario} onChange={e => s("horario", e.target.value)} />
+          </div>
+        </div>
+
+        <div className="fg" style={{ marginTop: 14 }}>
+          <label className="flbl">Local</label>
+          <input className="finp" placeholder="Nome da quadra ou endereço" value={f.local} onChange={e => s("local", e.target.value)} />
+        </div>
+
+        <div className="frow">
+          <div className="fg" style={{ marginBottom: 0 }}>
+            <label className="flbl">Vagas</label>
+            <input className="finp" type="number" min={2} max={32} value={f.vagas} onChange={e => s("vagas", e.target.value)} />
+          </div>
+          <div className="fg" style={{ marginBottom: 0 }}>
+            <label className="flbl">Aluguel (R$)</label>
+            <input className="finp" type="number" min={0} placeholder="0" value={f.aluguel} onChange={e => s("aluguel", e.target.value)} />
+          </div>
+        </div>
+
+        <div className="fg" style={{ marginTop: 14 }}>
+          <label className="flbl">Chave Pix</label>
+          <input className="finp" placeholder="CPF, e-mail, telefone ou chave" value={f.pix_chave} onChange={e => s("pix_chave", e.target.value)} />
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
+          <button className="btn btn-p" style={{ flex: 2 }} onClick={create}>✅ Criar Play</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1146,6 +1258,8 @@ export default function App() {
   const [selPlay, setSelPlay] = useState(null);
   const [selGroup, setSelGroup] = useState(null);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showCreatePlay, setShowCreatePlay] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
   const [banner, setBanner] = useState(null);
   const [toast, setToast] = useState(null);
   const [showPWA, setShowPWA] = useState(false);
@@ -1162,6 +1276,13 @@ export default function App() {
   function openPlay(p) { setSelPlay(p); setScreen(p.tipo_jogo === "progressivo" ? "progressive" : "play"); }
   function openGroup(g) { setSelGroup(g); setScreen("group"); }
   function updatePlay(up) { setPlays(prev => prev.map(p => p.id === up.id ? up : p)); setSelPlay(up); }
+
+  function handleCreatePlay(p) {
+    setPlays(prev => [...prev, p]);
+    playSound("success");
+    setBanner({ ico: "🎾", title: `Play "${p.nome}" criado!`, sub: `${fmtDate(p.data)} às ${p.horario} · ${p.local}` });
+    setToast(`✅ Play criado com sucesso!`);
+  }
 
   function handleCreateGroup(g) {
     setGroups(prev => [...prev, g]);
@@ -1277,7 +1398,26 @@ export default function App() {
       {screen === "progressive" && selPlay && <ProgressivePlayScreen play={selPlay} onBack={() => go(nav)} onUpdate={updatePlay} />}
       {screen === "group" && selGroup && <GroupDetail group={selGroup} onBack={() => go("grupos")} />}
 
-      {showHdr && <button className="fab" onClick={() => setShowCreateGroup(true)}>+</button>}
+      {showHdr && (
+        <>
+          {fabOpen && <div className="fab-backdrop" onClick={() => setFabOpen(false)} />}
+          {fabOpen && (
+            <div className="fab-menu">
+              <div className="fab-item" style={{ animationDelay: "0.05s" }}>
+                <div className="fab-item-btn" onClick={() => { setFabOpen(false); setShowCreateGroup(true); }}>
+                  👥 Criar Grupo
+                </div>
+              </div>
+              <div className="fab-item" style={{ animationDelay: "0s" }}>
+                <div className="fab-item-btn" onClick={() => { setFabOpen(false); setShowCreatePlay(true); }}>
+                  🎾 Criar Play
+                </div>
+              </div>
+            </div>
+          )}
+          <button className={`fab ${fabOpen ? "open" : ""}`} onClick={() => setFabOpen(o => !o)}>+</button>
+        </>
+      )}
 
       <div className="bnav">
         {NAV.map(n => (
@@ -1287,6 +1427,7 @@ export default function App() {
         ))}
       </div>
 
+      {showCreatePlay && <CreatePlayModal onClose={() => setShowCreatePlay(false)} onCreate={handleCreatePlay} />}
       {showCreateGroup && <CreateGroupModal onClose={() => setShowCreateGroup(false)} onCreate={handleCreateGroup} />}
       {showPWA && <PWAModal onClose={() => setShowPWA(false)} onInstall={() => pwa.install()} installed={pwa.isInstalled} />}
     </div>
