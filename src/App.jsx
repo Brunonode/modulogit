@@ -983,7 +983,7 @@ function CreateGroupModal({ onClose, onCreate }) {
 /* ════════════════════════════════════════════════════════
    LANÇAR RESULTADO INLINE
 ════════════════════════════════════════════════════════ */
-function LancarResultadoInline({ onSave }) {
+function LancarResultadoInline({ onSave, label = "pontos" }) {
   const [a, setA] = useState(0);
   const [b, setB] = useState(0);
   const [open, setOpen] = useState(false);
@@ -1349,48 +1349,339 @@ function GroupDetail({ group, onBack }) {
 /* ════════════════════════════════════════════════════════
    DETALHE DO PLAY (não-progressivo)
 ════════════════════════════════════════════════════════ */
-function PlayDetailScreen({ play, onBack }) {
-  const lp = play;
+/* calcula ranking a partir das partidas encerradas */
+function calcRankingCamp(duplas, partidas) {
+  const rk = {};
+  const get = uid => { if (!rk[uid]) rk[uid] = { user_id: uid, pts: 0, v: 0, d: 0, sg: 0 }; return rk[uid]; };
+  (partidas || []).filter(p => p.status === "encerrada").forEach(p => {
+    const da = (duplas || []).find(d => d.id === p.dupla_a);
+    const db = (duplas || []).find(d => d.id === p.dupla_b);
+    if (!da || !db) return;
+    const winA = p.vencedor === p.dupla_a;
+    const sA = (p.sets || []).filter(s => s.a > s.b).length;
+    const sB = (p.sets || []).filter(s => s.b > s.a).length;
+    [da.j1, da.j2].filter(Boolean).forEach(uid => {
+      const r = get(uid);
+      if (winA) { r.pts += 3; r.v += 1; r.sg += sA - sB; } else { r.d += 1; r.sg += sA - sB; }
+    });
+    [db.j1, db.j2].filter(Boolean).forEach(uid => {
+      const r = get(uid);
+      if (!winA) { r.pts += 3; r.v += 1; r.sg += sB - sA; } else { r.d += 1; r.sg += sB - sA; }
+    });
+  });
+  return Object.values(rk).sort((a, b) => b.pts - a.pts || b.v - a.v || b.sg - a.sg);
+}
+
+function PlayDetailScreen({ play, onBack, onUpdate }) {
+  const [lp, setLp] = useState(play);
+  const [tab, setTab] = useState("info");
+  const [toast, setToast] = useState(null);
+  const isAdmin = lp.admin_id === ME;
+  const isCamp = lp.tipo === "campeonato";
+
+  function update(up) { setLp(up); onUpdate?.(up); }
+
+  /* ── Formar duplas automaticamente ── */
+  function gerarDuplas() {
+    const shuffled = [...lp.inscritos].sort(() => Math.random() - 0.5);
+    const duplas = [];
+    for (let i = 0; i < shuffled.length - 1; i += 2) {
+      duplas.push({ id: i / 2 + 1, j1: shuffled[i], j2: shuffled[i + 1] });
+    }
+    if (shuffled.length % 2 !== 0) {
+      duplas.push({ id: duplas.length + 1, j1: shuffled[shuffled.length - 1], j2: null });
+    }
+    update({ ...lp, duplas, status: "em_andamento" });
+    playSound("success");
+    setToast("👥 Duplas formadas!");
+    setTab("duplas");
+  }
+
+  /* ── Gerar tabela de partidas (todos contra todos) ── */
+  function gerarPartidas() {
+    const d = lp.duplas.filter(d => d.j2 !== null);
+    const partidas = [];
+    for (let i = 0; i < d.length; i++) {
+      for (let j = i + 1; j < d.length; j++) {
+        partidas.push({ id: partidas.length + 1, dupla_a: d[i].id, dupla_b: d[j].id, sets: [], status: "pendente", vencedor: null, log: [] });
+      }
+    }
+    update({ ...lp, partidas, status: "em_andamento" });
+    playSound("success");
+    setToast(`⚡ ${partidas.length} partidas geradas!`);
+    setTab("partidas");
+  }
+
+  /* ── Lançar resultado ── */
+  function lancarResultado(partidaId, scoreA, scoreB) {
+    const sets = scoreA > scoreB
+      ? Array(scoreA).fill({ a: 6, b: 4 }).concat(Array(scoreB).fill({ a: 3, b: 6 }))
+      : Array(scoreB).fill({ a: 4, b: 6 }).concat(Array(scoreA).fill({ a: 6, b: 3 }));
+    const partida = lp.partidas.find(p => p.id === partidaId);
+    const vencedor = scoreA > scoreB ? partida.dupla_a : partida.dupla_b;
+    const newPartidas = lp.partidas.map(p =>
+      p.id !== partidaId ? p : { ...p, sets, status: "encerrada", vencedor }
+    );
+    const newRanking = calcRankingCamp(lp.duplas, newPartidas);
+    const allDone = newPartidas.every(p => p.status === "encerrada");
+    update({ ...lp, partidas: newPartidas, campeonato_ranking: newRanking, status: allDone ? "encerrado" : "em_andamento" });
+    playSound("point");
+    setToast("✅ Resultado salvo!");
+  }
+
   const per = calcPer(lp.financeiro, lp.inscritos.length);
+  const temDuplas = lp.duplas && lp.duplas.length > 0;
+  const temPartidas = lp.partidas && lp.partidas.length > 0;
+  const ranking = calcRankingCamp(lp.duplas, lp.partidas);
+
+  /* helper: nome de uma dupla */
+  const nomeDupla = d => {
+    if (!d) return "—";
+    const a = getUser(d.j1)?.apelido || "?";
+    const b = d.j2 ? getUser(d.j2)?.apelido || "?" : "BYE";
+    return `${a} & ${b}`;
+  };
+
+  const tabsDisponiveis = [
+    { id: "info", lbl: "📋 Info" },
+    { id: "duplas", lbl: "👥 Duplas" },
+    ...(isCamp ? [{ id: "partidas", lbl: "⚡ Partidas" }, { id: "ranking", lbl: "🏅 Ranking" }] : []),
+  ];
+
   return (
     <div>
-      <div style={{ background: "linear-gradient(135deg,var(--ocean2),var(--teal))", padding: "14px 20px 18px", color: "#fff" }}>
+      {toast && <Toast msg={toast} onDone={() => setToast(null)} />}
+
+      {/* Header */}
+      <div style={{ background: "linear-gradient(135deg,var(--ocean2),var(--teal))", padding: "14px 20px 0", color: "#fff" }}>
         <button onClick={onBack} style={{ background: "rgba(255,255,255,.18)", border: "none", color: "#fff", borderRadius: 10, padding: "6px 13px", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>← Voltar</button>
-        <div style={{ fontSize: 11, opacity: .65, letterSpacing: 2, textTransform: "uppercase" }}>{sportEmo(lp.esporte)} {sportLbl(lp.esporte)}</div>
-        <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 26, fontWeight: 900, marginTop: 3 }}>{lp.nome}</div>
-        <div style={{ fontSize: 12, opacity: .7, marginTop: 3 }}>📅 {fmtDate(lp.data)} às {lp.horario} · 📍 {lp.local}</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
+          <span className={`badge ${lp.esporte === "BT" ? "b-bt" : "b-fv"}`}>{sportEmo(lp.esporte)} {sportLbl(lp.esporte)}</span>
+          <span className={`badge ${lp.tipo === "campeonato" ? "b-camp" : "b-cas"}`}>{lp.tipo === "campeonato" ? "🏆 Campeonato" : "🎮 Casual"}</span>
+          <span className={`badge ${lp.status === "em_andamento" ? "b-live" : lp.status === "encerrado" ? "b-done" : "b-open"}`}>
+            {lp.status === "em_andamento" ? "🔴 Ao vivo" : lp.status === "encerrado" ? "✅ Encerrado" : "Aberto"}
+          </span>
+        </div>
+        <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 26, fontWeight: 900 }}>{lp.nome}</div>
+        <div style={{ fontSize: 12, opacity: .7, marginTop: 2, marginBottom: 14 }}>
+          📅 {fmtDate(lp.data)} às {lp.horario} &nbsp;·&nbsp; 📍 {lp.local} &nbsp;·&nbsp; 👥 {lp.inscritos.length}/{lp.vagas}
+        </div>
+        <div className="tabs" style={{ margin: "0 -0px 0" }}>
+          {tabsDisponiveis.map(t => (
+            <button key={t.id} className={`tab ${tab === t.id ? "active" : ""}`} onClick={() => setTab(t.id)}>{t.lbl}</button>
+          ))}
+        </div>
       </div>
+
       <div className="main" style={{ paddingTop: 16 }}>
-        <div className="card cp">
-          <div className="stitle" style={{ fontSize: 16, marginBottom: 10 }}>💰 Financeiro</div>
-          <div style={{ background: "rgba(11,79,108,.06)", borderRadius: 14, padding: "14px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "3px 0" }}><span>Aluguel</span><span>{fmtMoney(lp.financeiro.aluguel)}</span></div>
-            <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 36, fontWeight: 900, color: "var(--teal)", textAlign: "center", marginTop: 6 }}>{fmtMoney(per)}</div>
-            <div style={{ fontSize: 12, color: "var(--muted)", textAlign: "center" }}>por pessoa ({lp.inscritos.length} participantes)</div>
-          </div>
-        </div>
-        <div className="card cp" style={{ marginTop: 12 }}>
-          <div className="stitle" style={{ fontSize: 16, marginBottom: 10 }}>👥 Participantes</div>
-          {lp.inscritos.map(uid => {
-            const u = getUser(uid);
-            const pag = lp.pagamentos?.find(p => p.user_id === uid);
-            return (
-              <div key={uid} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--sand2)" }}>
-                <Av user={u} size={34} />
-                <div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: 13 }}>{u?.nome}</div><div style={{ fontSize: 11, color: "var(--muted)" }}>Cat. {u?.categoria}</div></div>
-                <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20, background: pag?.status === "confirmado" ? "rgba(26,155,140,.15)" : pag?.status === "pago" ? "rgba(46,204,113,.15)" : "rgba(245,166,35,.15)", color: pag?.status === "confirmado" ? "var(--teal)" : pag?.status === "pago" ? "#27AE60" : "var(--sun2)" }}>{pag?.status === "confirmado" ? "✓" : pag?.status === "pago" ? "Pago" : "Pend."}</span>
+
+        {/* ── INFO ── */}
+        {tab === "info" && (
+          <>
+            {/* CTA para admin iniciar */}
+            {isAdmin && lp.status === "aberto" && (
+              <div className="alert alert-warn" style={{ marginBottom: 12 }}>
+                ⚠️ Play ainda não iniciado. Vá para a aba <strong>Duplas</strong> para formar os times e iniciar.
               </div>
-            );
-          })}
-        </div>
-        <div className="card cp" style={{ marginTop: 12 }}>
-          <div className="stitle" style={{ fontSize: 16, marginBottom: 10 }}>⚡ Pix</div>
-          <div style={{ background: "linear-gradient(135deg,rgba(26,155,140,.08),rgba(11,79,108,.06))", border: "2px dashed var(--teal)", borderRadius: 16, padding: 16, textAlign: "center" }}>
-            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Chave Pix ({lp.financeiro.pix_tipo})</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ocean)", background: "#fff", padding: "8px 14px", borderRadius: 10, wordBreak: "break-all" }}>{lp.financeiro.pix_chave}</div>
-            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 5 }}>{lp.financeiro.pix_nome}</div>
-          </div>
-        </div>
+            )}
+
+            {/* Financeiro */}
+            <div className="card cp" style={{ marginBottom: 12 }}>
+              <div className="stitle" style={{ fontSize: 16, marginBottom: 10 }}>💰 Financeiro</div>
+              <div style={{ background: "rgba(11,79,108,.06)", borderRadius: 14, padding: "14px 16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "3px 0" }}>
+                  <span>Aluguel</span><span>{fmtMoney(lp.financeiro.aluguel)}</span>
+                </div>
+                {lp.financeiro.extras > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "3px 0" }}>
+                    <span>Extras</span><span>{fmtMoney(lp.financeiro.extras)}</span>
+                  </div>
+                )}
+                <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 36, fontWeight: 900, color: "var(--teal)", textAlign: "center", marginTop: 8 }}>{fmtMoney(per)}</div>
+                <div style={{ fontSize: 12, color: "var(--muted)", textAlign: "center" }}>por pessoa · {lp.inscritos.length} participantes</div>
+              </div>
+            </div>
+
+            {/* Participantes */}
+            <div className="card cp" style={{ marginBottom: 12 }}>
+              <div className="stitle" style={{ fontSize: 16, marginBottom: 10 }}>👥 Participantes</div>
+              {lp.inscritos.map(uid => {
+                const u = getUser(uid);
+                const pag = lp.pagamentos?.find(p => p.user_id === uid);
+                const statusColor = pag?.status === "confirmado" || pag?.status === "pago" ? { bg: "rgba(46,204,113,.15)", color: "#27AE60" } : { bg: "rgba(245,166,35,.15)", color: "var(--sun2)" };
+                return (
+                  <div key={uid} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--sand2)" }}>
+                    <Av user={u} size={34} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>{u?.nome}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted)" }}>Cat. {u?.categoria}</div>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20, background: statusColor.bg, color: statusColor.color }}>
+                      {pag?.status === "confirmado" ? "✓ Confirmado" : pag?.status === "pago" ? "✓ Pago" : "⏳ Pendente"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Pix */}
+            {lp.financeiro.pix_chave && (
+              <div className="card cp">
+                <div className="stitle" style={{ fontSize: 16, marginBottom: 10 }}>⚡ Pix</div>
+                <div style={{ background: "linear-gradient(135deg,rgba(26,155,140,.08),rgba(11,79,108,.06))", border: "2px dashed var(--teal)", borderRadius: 16, padding: 16, textAlign: "center" }}>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Chave Pix ({lp.financeiro.pix_tipo})</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ocean)", background: "#fff", padding: "8px 14px", borderRadius: 10, wordBreak: "break-all" }}>{lp.financeiro.pix_chave}</div>
+                  {lp.financeiro.pix_nome && <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 5 }}>{lp.financeiro.pix_nome}</div>}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── DUPLAS ── */}
+        {tab === "duplas" && (
+          <>
+            {!temDuplas ? (
+              <div>
+                <div className="empty">
+                  <div className="empty-ico">👥</div>
+                  <div className="empty-t">Duplas não formadas</div>
+                  <div className="empty-s">Sorteie ou forme as duplas para iniciar o campeonato</div>
+                </div>
+                {isAdmin && (
+                  <button className="btn btn-p btn-blk" style={{ marginTop: 8 }} onClick={gerarDuplas}>
+                    🎲 Sortear duplas aleatoriamente
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="alert alert-success" style={{ marginBottom: 12 }}>
+                  ✅ {lp.duplas.length} duplas formadas · {lp.inscritos.length} jogadores
+                </div>
+                {lp.duplas.map((d, i) => {
+                  const ua = getUser(d.j1), ub = d.j2 ? getUser(d.j2) : null;
+                  return (
+                    <div key={d.id} className="card" style={{ marginBottom: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 26, fontWeight: 900, color: "var(--ocean)", width: 30 }}>#{i + 1}</div>
+                      <Av user={ua} size={38} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 800, fontSize: 14 }}>{ua?.apelido || ua?.nome}</div>
+                        <div style={{ fontSize: 12, color: "var(--muted)" }}>Cat. {ua?.categoria}</div>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: "var(--muted)" }}>&</div>
+                      {ub ? (
+                        <>
+                          <Av user={ub} size={38} />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 800, fontSize: 14 }}>{ub?.apelido || ub?.nome}</div>
+                            <div style={{ fontSize: 12, color: "var(--muted)" }}>Cat. {ub?.categoria}</div>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ flex: 1, fontSize: 13, color: "var(--muted)", fontStyle: "italic" }}>Sem par (BYE)</div>
+                      )}
+                    </div>
+                  );
+                })}
+                {isAdmin && !temPartidas && (
+                  <button className="btn btn-sun btn-blk" style={{ marginTop: 8 }} onClick={gerarPartidas}>
+                    ⚡ Gerar tabela de partidas
+                  </button>
+                )}
+                {isAdmin && (
+                  <button className="btn btn-ghost btn-blk" style={{ marginTop: 10 }} onClick={gerarDuplas}>
+                    🔄 Resortear duplas
+                  </button>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        {/* ── PARTIDAS ── */}
+        {tab === "partidas" && (
+          <>
+            {!temPartidas ? (
+              <div>
+                <div className="empty">
+                  <div className="empty-ico">⚡</div>
+                  <div className="empty-t">Nenhuma partida ainda</div>
+                  <div className="empty-s">{temDuplas ? "Gere a tabela na aba Duplas" : "Forme as duplas primeiro"}</div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                  {[["⏳", "pendente"], ["🔴", "em_andamento"], ["✅", "encerrada"]].map(([e, s]) => {
+                    const n = lp.partidas.filter(p => p.status === s).length;
+                    return n > 0 ? <span key={s} className="badge b-open">{e} {n} {s === "pendente" ? "pendentes" : s === "em_andamento" ? "em jogo" : "encerradas"}</span> : null;
+                  })}
+                </div>
+                {lp.partidas.map(p => {
+                  const da = lp.duplas.find(d => d.id === p.dupla_a);
+                  const db = lp.duplas.find(d => d.id === p.dupla_b);
+                  const encerrada = p.status === "encerrada";
+                  const sA = (p.sets || []).filter(s => s.a > s.b).length;
+                  const sB = (p.sets || []).filter(s => s.b > s.a).length;
+                  return (
+                    <div key={p.id} className="card" style={{ marginBottom: 10, padding: "12px 16px", borderLeft: `4px solid ${encerrada ? "var(--grass)" : "var(--sand3)"}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: encerrada || !isAdmin ? 0 : 8 }}>
+                        <div style={{ flex: 1, textAlign: "center" }}>
+                          <div style={{ fontWeight: 800, fontSize: 13, color: encerrada && p.vencedor === p.dupla_a ? "var(--teal)" : "var(--text)" }}>{nomeDupla(da)}</div>
+                        </div>
+                        <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 22, fontWeight: 900, color: encerrada ? "var(--teal)" : "var(--muted)", minWidth: 52, textAlign: "center" }}>
+                          {encerrada ? `${sA}×${sB}` : "VS"}
+                        </div>
+                        <div style={{ flex: 1, textAlign: "center" }}>
+                          <div style={{ fontWeight: 800, fontSize: 13, color: encerrada && p.vencedor === p.dupla_b ? "var(--teal)" : "var(--text)" }}>{nomeDupla(db)}</div>
+                        </div>
+                      </div>
+                      {!encerrada && isAdmin && (
+                        <LancarResultadoInline onSave={(a, b) => lancarResultado(p.id, a, b)} label="sets vencidos" />
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </>
+        )}
+
+        {/* ── RANKING ── */}
+        {tab === "ranking" && (
+          <>
+            {ranking.length === 0 ? (
+              <div className="empty">
+                <div className="empty-ico">🏅</div>
+                <div className="empty-t">Ranking vazio</div>
+                <div className="empty-s">Lance resultados de partidas para ver o ranking</div>
+              </div>
+            ) : (
+              <div className="card">
+                {ranking.map((r, i) => {
+                  const u = getUser(r.user_id);
+                  return (
+                    <div key={r.user_id} className="rk-item" style={{ background: r.user_id === ME ? "rgba(26,155,140,.05)" : "" }}>
+                      <div className={`rk-pos ${i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : ""}`}>
+                        {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                      </div>
+                      <Av user={u} size={38} />
+                      <div style={{ flex: 1 }}>
+                        <div className="rk-name">{u?.apelido || u?.nome}</div>
+                        <div className="rk-sub">{r.v}V · {r.d}D · SG {r.sg > 0 ? "+" : ""}{r.sg}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div className="rk-pts">{r.pts}</div>
+                        <div className="rk-pts-lbl">pts</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -1588,7 +1879,7 @@ export default function App() {
         </div>
       )}
 
-      {screen === "play" && selPlay && <PlayDetailScreen play={selPlay} onBack={() => go(nav)} />}
+      {screen === "play" && selPlay && <PlayDetailScreen play={selPlay} onBack={() => go(nav)} onUpdate={updatePlay} />}
       {screen === "progressive" && selPlay && <ProgressivePlayScreen play={selPlay} onBack={() => go(nav)} onUpdate={updatePlay} />}
       {screen === "group" && selGroup && <GroupDetail group={selGroup} onBack={() => go("grupos")} />}
 
