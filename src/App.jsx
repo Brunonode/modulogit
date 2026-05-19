@@ -426,6 +426,40 @@ body{font-family:'Nunito',sans-serif;background:var(--sand);color:var(--text);mi
 .fab-item-btn{background:#fff;border:none;border-radius:14px;padding:10px 16px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;color:var(--ocean);cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.18);white-space:nowrap;display:flex;align-items:center;gap:8px}
 .fab-item-btn:hover{background:var(--sand)}
 .fab.open{transform:rotate(45deg)}
+
+/* ── PLACAR AO VIVO ── */
+.ls-screen{position:fixed;inset:0;background:var(--ocean2);z-index:300;display:flex;flex-direction:column;max-width:430px;left:50%;transform:translateX(-50%)}
+.ls-hdr{padding:14px 20px 10px;background:rgba(0,0,0,.25);display:flex;align-items:center;justify-content:space-between}
+.ls-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:14px}
+.ls-sets{display:flex;gap:10px;justify-content:center}
+.ls-set-box{background:rgba(255,255,255,.08);border-radius:12px;padding:8px 14px;text-align:center;min-width:60px}
+.ls-set-lbl{font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.ls-set-score{font-family:'Barlow Condensed',cursive;font-size:28px;font-weight:900;color:#fff;line-height:1}
+.ls-game-row{width:100%;display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center}
+.ls-team-col{background:rgba(255,255,255,.07);border-radius:20px;padding:18px 10px;text-align:center}
+.ls-team-name{font-size:12px;font-weight:800;color:rgba(255,255,255,.65);margin-bottom:6px;min-height:32px;display:flex;align-items:center;justify-content:center;line-height:1.2}
+.ls-game-pts{font-family:'Barlow Condensed',cursive;font-size:72px;font-weight:900;color:#fff;line-height:1}
+.ls-game-pts.lead{color:var(--sun)}
+.ls-game-pts.adv{color:var(--grass)}
+.ls-vs-col{font-family:'Barlow Condensed',cursive;font-size:18px;font-weight:900;color:rgba(255,255,255,.25);text-align:center}
+.ls-status{background:rgba(255,255,255,.06);border-radius:12px;padding:8px 16px;font-size:13px;font-weight:800;color:rgba(255,255,255,.7);text-align:center;width:100%}
+.ls-status.deuce{background:rgba(245,166,35,.2);color:var(--sun);animation:pulsate 1.2s infinite}
+.ls-status.adv{background:rgba(46,204,113,.2);color:var(--grass);animation:pulsate .9s infinite}
+@keyframes pulsate{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+.ls-btns{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%}
+.ls-pt-btn{padding:22px 10px;border-radius:18px;border:none;cursor:pointer;font-family:'Barlow Condensed',cursive;font-size:18px;font-weight:900;color:#fff;transition:transform .1s;display:flex;flex-direction:column;align-items:center;gap:4px;line-height:1}
+.ls-pt-btn:active{transform:scale(.92)}
+.ls-pt-btn.a-btn{background:linear-gradient(135deg,var(--teal),var(--ocean));box-shadow:0 6px 20px rgba(26,155,140,.4)}
+.ls-pt-btn.b-btn{background:linear-gradient(135deg,var(--coral),var(--coral2));box-shadow:0 6px 20px rgba(232,83,58,.4)}
+.ls-pt-btn-sub{font-size:11px;font-family:'Nunito',sans-serif;opacity:.8}
+.ls-hist{background:rgba(255,255,255,.04);border-radius:12px;padding:8px 12px;width:100%;max-height:80px;overflow-y:auto}
+.ls-hist-item{font-size:11px;color:rgba(255,255,255,.5);padding:2px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.ls-hist-item:last-child{border-bottom:none}
+.ls-flash{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:400;pointer-events:none}
+.ls-flash-card{background:linear-gradient(135deg,var(--sun),var(--coral));color:#fff;border-radius:22px;padding:24px 36px;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.4);animation:popIn .45s cubic-bezier(.34,1.56,.64,1)}
+.ls-won{position:fixed;inset:0;background:linear-gradient(135deg,var(--ocean2),var(--teal));display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:500;padding:24px;text-align:center;max-width:430px;left:50%;transform:translateX(-50%)}
+.ls-trophy{font-size:80px;animation:trophyBounce 1s infinite}
+@keyframes trophyBounce{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-14px) rotate(5deg)}}
 `;
 
 /* ════════════════════════════════════════════════════════
@@ -1162,7 +1196,20 @@ function ProgressivePlayScreen({ play, onBack, onUpdate }) {
                 <div key={rodada.id} className={`prog-round ${rodada.status === "current" ? "current" : rodada.status === "done" ? "done" : ""}`}>
                   <div className="prog-round-title">
                     Rodada {rodada.id}
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)", marginLeft: 8 }}>{rodada.status === "done" ? "✅ Concluída" : "🔴 Em andamento"}</span>
+                    {rodada.status === "done" ? (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--teal)", marginLeft: 8 }}>✅ Concluída</span>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--coral)", marginLeft: 8 }}>🔴 Em andamento</span>
+                        {rodada.matchups?.length > 0 && (() => {
+                          const done = rodada.matchups.filter(m => m.status === "done").length;
+                          const total = rodada.matchups.length;
+                          return done < total ? (
+                            <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: 8 }}>({done}/{total} resultados)</span>
+                          ) : null;
+                        })()}
+                      </>
+                    )}
                   </div>
                   {rodada.matchups?.map((m, i) => {
                     const ua1 = getUser(m.d1[0]), ua2 = getUser(m.d1[1]);
@@ -1184,7 +1231,12 @@ function ProgressivePlayScreen({ play, onBack, onUpdate }) {
               ))
             )}
             {isAdmin && lp.presentes?.length >= 4 && (
-              <button className="btn btn-purple btn-blk" style={{ marginTop: 8 }} onClick={sortearProxima}>🎲 Nova Rodada</button>
+              <>
+                <button className="btn btn-purple btn-blk" style={{ marginTop: 8 }} onClick={sortearProxima}>🎲 Nova Rodada</button>
+                <div className="alert alert-info" style={{ marginTop: 8, fontSize: 12 }}>
+                  💡 Rodadas simultâneas são permitidas. Cada rodada só é concluída quando todos os seus jogos tiverem resultado.
+                </div>
+              </>
             )}
           </div>
         )}
@@ -1357,6 +1409,211 @@ function GroupDetail({ group, onBack }) {
 /* ════════════════════════════════════════════════════════
    DETALHE DO PLAY (não-progressivo)
 ════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════
+   PLACAR AO VIVO — Tennis scoring (15/30/40/Deuce/Ad/Game)
+════════════════════════════════════════════════════════ */
+const GAME_MAP = ["0", "15", "30", "40"];
+
+function gameDisplay(a, b) {
+  // retorna [exibicaoA, exibicaoB, estado]
+  // estado: null | "deuce" | "advA" | "advB"
+  if (a >= 3 && b >= 3) {
+    if (a === b)   return ["40", "40", "deuce"];
+    if (a > b)     return ["Ad", "40",  "advA"];
+    return                ["40", "Ad",  "advB"];
+  }
+  return [GAME_MAP[a] ?? "0", GAME_MAP[b] ?? "0", null];
+}
+
+function addGamePoint(state, team) {
+  let { gameA, gameB, setScores, setA, setB } = state;
+  if (team === "a") gameA++; else gameB++;
+
+  const [, , status] = gameDisplay(gameA, gameB);
+
+  // verifica game ganho: 4+ pontos E diferença ≥ 2
+  const gameWon = gameA >= 4 && gameA - gameB >= 2 ? "a"
+                : gameB >= 4 && gameB - gameA >= 2 ? "b"
+                : null;
+
+  if (!gameWon) return { ...state, gameA, gameB };
+
+  // incrementa set
+  let nSetA = setA, nSetB = setB;
+  if (gameWon === "a") nSetA++; else nSetB++;
+
+  // verifica set ganho: 6+ games E diferença ≥ 2 (ou 7-5)
+  const setWon = (nSetA >= 6 && nSetA - nSetB >= 2) || nSetA === 7 ? "a"
+               : (nSetB >= 6 && nSetB - nSetA >= 2) || nSetB === 7 ? "b"
+               : null;
+
+  if (!setWon) {
+    return { ...state, gameA: 0, gameB: 0, setA: nSetA, setB: nSetB };
+  }
+
+  // fecha o set
+  const newSetScores = [...setScores, { a: nSetA, b: nSetB }];
+  const sA = newSetScores.filter(s => s.a > s.b).length;
+  const sB = newSetScores.filter(s => s.b > s.a).length;
+  const matchWon = sA >= 2 ? "a" : sB >= 2 ? "b" : null;
+
+  return { ...state, gameA: 0, gameB: 0, setA: 0, setB: 0, setScores: newSetScores, matchWon };
+}
+
+function LiveMatchScreen({ teamA, teamB, onSave, onClose }) {
+  const [st, setSt] = useState({ gameA: 0, gameB: 0, setA: 0, setB: 0, setScores: [], matchWon: null });
+  const [flash, setFlash] = useState(null);
+  const [history, setHistory] = useState([]);
+
+  function addPoint(team) {
+    if (st.matchWon) return;
+    const prev = st;
+    const next = addGamePoint(st, team);
+    setSt(next);
+
+    // detecta o que mudou para mostrar flash
+    const setsChanged = next.setScores.length > prev.setScores.length;
+    const gameChanged = next.gameA === 0 && next.gameB === 0 && (prev.gameA > 0 || prev.gameB > 0);
+
+    const winnerName = team === "a" ? teamA : teamB;
+    let logMsg = "";
+
+    if (next.matchWon) {
+      setFlash(null);
+    } else if (setsChanged) {
+      const last = next.setScores[next.setScores.length - 1];
+      logMsg = `Set ${next.setScores.length}: ${last.a}×${last.b} — ${winnerName} venceu o set`;
+      setFlash({ title: `SET ${next.setScores.length}`, sub: `${last.a}×${last.b} — ${winnerName}`, timeout: 1800 });
+      setTimeout(() => setFlash(null), 1800);
+    } else if (gameChanged) {
+      logMsg = `Game — ${winnerName}`;
+      setFlash({ title: "GAME", sub: winnerName, timeout: 900 });
+      setTimeout(() => setFlash(null), 900);
+    }
+
+    if (logMsg) setHistory(h => [logMsg, ...h].slice(0, 20));
+  }
+
+  function undo() {
+    setHistory(h => h.slice(1));
+  }
+
+  function finish(winner) {
+    const sets = [...st.setScores];
+    const sA = sets.filter(s => s.a > s.b).length;
+    const sB = sets.filter(s => s.b > s.a).length;
+    onSave(sA, sB);
+  }
+
+  const [dispA, dispB, gameStatus] = gameDisplay(st.gameA, st.gameB);
+  const setsA = st.setScores.filter(s => s.a > s.b).length;
+  const setsB = st.setScores.filter(s => s.b > s.a).length;
+
+  if (st.matchWon) {
+    const winnerName = st.matchWon === "a" ? teamA : teamB;
+    const sA = st.setScores.filter(s => s.a > s.b).length;
+    const sB = st.setScores.filter(s => s.b > s.a).length;
+    return (
+      <div className="ls-won">
+        <div className="ls-trophy">🏆</div>
+        <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 42, fontWeight: 900, color: "#fff", marginTop: 16 }}>
+          {winnerName}
+        </div>
+        <div style={{ fontSize: 16, color: "rgba(255,255,255,.7)", margin: "8px 0 6px" }}>venceu a partida!</div>
+        <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 28, fontWeight: 900, color: "var(--sun)", marginBottom: 28 }}>
+          {sA}×{sB} em sets
+        </div>
+        {st.setScores.map((s, i) => (
+          <div key={i} style={{ fontSize: 13, color: "rgba(255,255,255,.55)", marginBottom: 4 }}>
+            Set {i + 1}: {s.a}×{s.b}
+          </div>
+        ))}
+        <button className="btn btn-sun btn-blk" style={{ marginTop: 24, maxWidth: 300 }} onClick={() => finish(st.matchWon)}>
+          ✅ Salvar resultado
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="ls-screen">
+      {/* Flash de game/set */}
+      {flash && (
+        <div className="ls-flash">
+          <div className="ls-flash-card">
+            <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 36, fontWeight: 900 }}>{flash.title}</div>
+            <div style={{ fontSize: 16, marginTop: 4 }}>{flash.sub}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="ls-hdr">
+        <button onClick={onClose} style={{ background: "rgba(255,255,255,.15)", border: "none", color: "#fff", borderRadius: 10, padding: "6px 13px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>✕ Sair</button>
+        <div style={{ fontFamily: "'Barlow Condensed',cursive", fontSize: 16, fontWeight: 900, color: "rgba(255,255,255,.6)" }}>
+          AO VIVO · {setsA}×{setsB} sets
+        </div>
+        <div style={{ width: 70 }} />
+      </div>
+
+      <div className="ls-body">
+        {/* Sets anteriores */}
+        {st.setScores.length > 0 && (
+          <div className="ls-sets">
+            {st.setScores.map((s, i) => (
+              <div key={i} className="ls-set-box">
+                <div className="ls-set-lbl">Set {i + 1}</div>
+                <div className="ls-set-score" style={{ color: s.a > s.b ? "var(--sun)" : s.b > s.a ? "var(--coral)" : "#fff" }}>
+                  {s.a}×{s.b}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Placar atual */}
+        <div className="ls-game-row">
+          <div className="ls-team-col">
+            <div className="ls-team-name">{teamA}</div>
+            <div className={`ls-game-pts ${gameStatus === "advA" ? "adv" : dispA === "40" && dispB !== "40" && dispB !== "Ad" ? "lead" : ""}`}>{dispA}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,.45)", marginTop: 4 }}>{st.setA} games</div>
+          </div>
+          <div className="ls-vs-col">VS</div>
+          <div className="ls-team-col">
+            <div className="ls-team-name">{teamB}</div>
+            <div className={`ls-game-pts ${gameStatus === "advB" ? "adv" : dispB === "40" && dispA !== "40" && dispA !== "Ad" ? "lead" : ""}`}>{dispB}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,.45)", marginTop: 4 }}>{st.setB} games</div>
+          </div>
+        </div>
+
+        {/* Status */}
+        <div className={`ls-status ${gameStatus === "deuce" ? "deuce" : gameStatus ? "adv" : ""}`}>
+          {gameStatus === "deuce" ? "⚖️ DEUCE" : gameStatus === "advA" ? `✊ Vantagem ${teamA}` : gameStatus === "advB" ? `✊ Vantagem ${teamB}` : `Set ${st.setScores.length + 1} · ${st.setA}×${st.setB} games`}
+        </div>
+
+        {/* Botões de ponto */}
+        <div className="ls-btns">
+          <button className="ls-pt-btn a-btn" onClick={() => addPoint("a")}>
+            <span>{teamA}</span>
+            <span className="ls-pt-btn-sub">Ponto +1</span>
+          </button>
+          <button className="ls-pt-btn b-btn" onClick={() => addPoint("b")}>
+            <span>{teamB}</span>
+            <span className="ls-pt-btn-sub">Ponto +1</span>
+          </button>
+        </div>
+
+        {/* Histórico */}
+        {history.length > 0 && (
+          <div className="ls-hist">
+            {history.map((h, i) => <div key={i} className="ls-hist-item">{h}</div>)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* calcula ranking a partir das partidas encerradas */
 function calcRankingCamp(duplas, partidas) {
   const rk = {};
@@ -1384,6 +1641,7 @@ function PlayDetailScreen({ play, onBack, onUpdate }) {
   const [lp, setLp] = useState(play);
   const [tab, setTab] = useState("info");
   const [toast, setToast] = useState(null);
+  const [liveMatch, setLiveMatch] = useState(null); // { partidaId, teamA, teamB }
   const isAdmin = lp.admin_id === ME;
   const isCamp = lp.tipo === "campeonato";
 
@@ -1646,7 +1904,15 @@ function PlayDetailScreen({ play, onBack, onUpdate }) {
                         </div>
                       </div>
                       {!encerrada && isAdmin && (
-                        <LancarResultadoInline onSave={(a, b) => lancarResultado(p.id, a, b)} label="sets vencidos" />
+                        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                          <button className="btn btn-p btn-sm" style={{ flex: 1 }}
+                            onClick={() => setLiveMatch({ partidaId: p.id, teamA: nomeDupla(da), teamB: nomeDupla(db) })}>
+                            🔴 Ao vivo
+                          </button>
+                          <div style={{ flex: 2 }}>
+                            <LancarResultadoInline onSave={(a, b) => lancarResultado(p.id, a, b)} label="sets" />
+                          </div>
+                        </div>
                       )}
                     </div>
                   );
@@ -1691,6 +1957,16 @@ function PlayDetailScreen({ play, onBack, onUpdate }) {
           </>
         )}
       </div>
+
+      {/* Placar ao vivo */}
+      {liveMatch && (
+        <LiveMatchScreen
+          teamA={liveMatch.teamA}
+          teamB={liveMatch.teamB}
+          onClose={() => setLiveMatch(null)}
+          onSave={(sA, sB) => { lancarResultado(liveMatch.partidaId, sA, sB); setLiveMatch(null); }}
+        />
+      )}
     </div>
   );
 }
@@ -1890,7 +2166,7 @@ export default function App() {
       {screen === "progressive" && selPlay && <ProgressivePlayScreen play={selPlay} onBack={() => go(nav)} onUpdate={updatePlay} />}
       {screen === "group" && selGroup && <GroupDetail group={selGroup} onBack={() => go("grupos")} />}
 
-      {showHdr && (
+      {showHdr && (nav === "plays" || nav === "grupos") && (
         <button className="fab" onClick={() => nav === "grupos" ? setShowCreateGroup(true) : setShowCreatePlay(true)}>+</button>
       )}
 
