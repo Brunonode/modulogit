@@ -121,24 +121,34 @@ function buildPartnershipMatrix(rodadas) {
   const descansos = {};
 
   rodadas.forEach(r => {
-    if (r.status === "bye") {
-      const uid = r.bye_uid;
-      descansos[uid] = (descansos[uid] || 0) + 1;
-      return;
+    // rastreia descanso independente do formato
+    if (r.bye_uid) descansos[r.bye_uid] = (descansos[r.bye_uid] || 0) + 1;
+
+    // suporta dois formatos:
+    //   formato seed → r.d1/r.d2 no topo
+    //   formato novo → r.matchups[].d1/d2
+    const pares = [];
+    if (r.matchups?.length) {
+      r.matchups.forEach(m => { if (m.d1 && m.d2) pares.push([m.d1, m.d2]); });
+    } else if (r.d1 && r.d2) {
+      pares.push([r.d1, r.d2]);
     }
-    const { d1, d2 } = r;
-    [[d1[0], d1[1]], [d2[0], d2[1]]].forEach(([a, b]) => {
-      if (!parceria[a]) parceria[a] = {};
-      if (!parceria[b]) parceria[b] = {};
-      parceria[a][b] = (parceria[a][b] || 0) + 1;
-      parceria[b][a] = (parceria[b][a] || 0) + 1;
+
+    pares.forEach(([d1, d2]) => {
+      [[d1[0], d1[1]], [d2[0], d2[1]]].forEach(([a, b]) => {
+        if (!a || !b) return;
+        if (!parceria[a]) parceria[a] = {};
+        if (!parceria[b]) parceria[b] = {};
+        parceria[a][b] = (parceria[a][b] || 0) + 1;
+        parceria[b][a] = (parceria[b][a] || 0) + 1;
+      });
+      const keyA = [...d1].sort().join("-");
+      const keyB = [...d2].sort().join("-");
+      if (!confronto[keyA]) confronto[keyA] = {};
+      if (!confronto[keyB]) confronto[keyB] = {};
+      confronto[keyA][keyB] = (confronto[keyA][keyB] || 0) + 1;
+      confronto[keyB][keyA] = (confronto[keyB][keyA] || 0) + 1;
     });
-    const keyA = [...d1].sort().join("-");
-    const keyB = [...d2].sort().join("-");
-    if (!confronto[keyA]) confronto[keyA] = {};
-    if (!confronto[keyB]) confronto[keyB] = {};
-    confronto[keyA][keyB] = (confronto[keyA][keyB] || 0) + 1;
-    confronto[keyB][keyA] = (confronto[keyB][keyA] || 0) + 1;
   });
 
   return { parceria, confronto, descansos };
@@ -545,7 +555,6 @@ function GlobalBanner({ ico, title, sub, onDone }) {
    MODAL PWA
 ════════════════════════════════════════════════════════ */
 function PWAModal({ onClose, onInstall, installed }) {
-  const ios = isIOSDevice();
   const [step, setStep] = useState(installed ? "done" : "prompt");
 
   async function handleInstall() {
@@ -1310,7 +1319,6 @@ function GruposScreen({ groups, onGroup, onCreateGroup }) {
         </div>
       ))}
       <button className="btn btn-p btn-blk" style={{ marginTop: 4 }} onClick={onCreateGroup}>+ Criar Grupo</button>
-      <button className="btn btn-ghost btn-blk" style={{ marginTop: 10 }}>🔑 Entrar com código</button>
     </div>
   );
 }
@@ -1701,7 +1709,6 @@ export default function App() {
   const [selGroup, setSelGroup] = useState(null);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showCreatePlay, setShowCreatePlay] = useState(false);
-  const [fabOpen, setFabOpen] = useState(false);
   const [banner, setBanner] = useState(null);
   const [toast, setToast] = useState(null);
   const [showPWA, setShowPWA] = useState(false);
@@ -1884,24 +1891,7 @@ export default function App() {
       {screen === "group" && selGroup && <GroupDetail group={selGroup} onBack={() => go("grupos")} />}
 
       {showHdr && (
-        <>
-          {fabOpen && <div className="fab-backdrop" onClick={() => setFabOpen(false)} />}
-          {fabOpen && (
-            <div className="fab-menu">
-              <div className="fab-item" style={{ animationDelay: "0.05s" }}>
-                <div className="fab-item-btn" onClick={() => { setFabOpen(false); setShowCreateGroup(true); }}>
-                  👥 Criar Grupo
-                </div>
-              </div>
-              <div className="fab-item" style={{ animationDelay: "0s" }}>
-                <div className="fab-item-btn" onClick={() => { setFabOpen(false); setShowCreatePlay(true); }}>
-                  🎾 Criar Play
-                </div>
-              </div>
-            </div>
-          )}
-          <button className={`fab ${fabOpen ? "open" : ""}`} onClick={() => setFabOpen(o => !o)}>+</button>
-        </>
+        <button className="fab" onClick={() => nav === "grupos" ? setShowCreateGroup(true) : setShowCreatePlay(true)}>+</button>
       )}
 
       <div className="bnav">
