@@ -1,0 +1,11 @@
+# Configuração pessoal (contém e-mail e senha) — NÃO versionar
+config.yaml
+
+# Relatórios gerados localmente
+relatorios/
+
+# Artefatos do Python
+__pycache__/
+*.pyc
+.venv/
+venv/
