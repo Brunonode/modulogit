@@ -1,0 +1,6 @@
+# Dependências do agregador de notícias jurídicas.
+# Instale tudo de uma vez com:  pip install -r requirements.txt
+
+requests>=2.31.0        # Realiza as requisições HTTP aos sites
+beautifulsoup4>=4.12.0  # Faz o parsing (leitura) do HTML das páginas
+PyYAML>=6.0             # Lê o arquivo de configuração em formato YAML

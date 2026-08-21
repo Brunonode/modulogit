@@ -1,0 +1,84 @@
+# ============================================================================
+#  ARQUIVO DE CONFIGURAÇÃO — Agregador de Notícias Jurídicas
+# ----------------------------------------------------------------------------
+#  Copie este arquivo para "config.yaml" e ajuste os valores conforme a sua
+#  necessidade. Assim você mantém suas configurações pessoais (e-mail, senha)
+#  fora do arquivo de exemplo que fica versionado no Git.
+#
+#      cp config.example.yaml config.yaml
+#
+#  Você NÃO precisa mexer no código Python para alterar termos de busca,
+#  destinatário do e-mail ou a lista de sites monitorados. Tudo é feito aqui.
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# 1) TERMOS DE BUSCA
+#    Manchetes que contiverem qualquer um destes termos serão coletadas.
+#    A comparação ignora maiúsculas/minúsculas e acentos.
+# ----------------------------------------------------------------------------
+termos_de_busca:
+  - direito imobiliário
+  - usucapião
+  - desapropriação
+  - direito de propriedade
+  - registro de imóveis
+
+# ----------------------------------------------------------------------------
+# 2) SITES / FONTES MONITORADAS
+#    Para cada fonte informe:
+#      - nome:     rótulo que aparece no relatório
+#      - url:      página da seção de notícias
+#      - seletor:  (opcional) seletor CSS que aponta para os links das
+#                  notícias. Se ficar em branco, o programa varre todos os
+#                  links da página e filtra pelos termos de busca.
+# ----------------------------------------------------------------------------
+fontes:
+  - nome: "STF - Supremo Tribunal Federal"
+    url: "https://portal.stf.jus.br/noticias/"
+    seletor: ""
+
+  - nome: "STJ - Superior Tribunal de Justiça"
+    url: "https://www.stj.jus.br/sites/portalp/Paginas/Comunicacao/Noticias.aspx"
+    seletor: ""
+
+  - nome: "TJRJ - Tribunal de Justiça do Rio de Janeiro"
+    url: "https://www.tjrj.jus.br/web/guest/noticias"
+    seletor: ""
+
+  - nome: "Migalhas"
+    url: "https://www.migalhas.com.br/"
+    seletor: ""
+
+  - nome: "Conjur - Consultor Jurídico"
+    url: "https://www.conjur.com.br/"
+    seletor: ""
+
+# ----------------------------------------------------------------------------
+# 3) CONFIGURAÇÃO DE E-MAIL (envio via SMTP)
+#    Exemplo abaixo usa o Gmail. Para o Gmail é OBRIGATÓRIO usar uma
+#    "Senha de app" (não a senha normal da conta):
+#      https://support.google.com/accounts/answer/185833
+#
+#    DICA DE SEGURANÇA: em vez de escrever a senha aqui, você pode deixar
+#    o campo "senha" em branco e definir a variável de ambiente
+#    NOTICIAS_EMAIL_SENHA. O programa usará essa variável se ela existir.
+# ----------------------------------------------------------------------------
+email:
+  servidor_smtp: "smtp.gmail.com"
+  porta: 587
+  usar_tls: true
+  remetente: "seu_email@gmail.com"       # conta que fará o envio
+  senha: ""                              # senha de app (ou use a variável de ambiente)
+  destinatario: "seu_email@gmail.com"    # para quem o resumo será enviado
+  assunto: "Resumo Diário — Notícias Jurídicas"
+
+# ----------------------------------------------------------------------------
+# 4) OPÇÕES GERAIS
+# ----------------------------------------------------------------------------
+opcoes:
+  # Tempo máximo (segundos) de espera por cada site antes de desistir.
+  timeout_segundos: 20
+  # Máximo de manchetes exibidas por fonte no relatório.
+  max_itens_por_fonte: 15
+  # Se true, também salva uma cópia do relatório em HTML na pasta local.
+  salvar_copia_local: true
